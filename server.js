@@ -26,6 +26,15 @@ if (!PIC_API_KEY) {
   console.warn('Warning: PIC_API_KEY not set. Set it in .env before running server.');
 }
 
+/* -------------------- CONFIG Maileroo Email API (ใหม่) -------------------- */
+
+const MAILEROO_API_URL = 'https://smtp.maileroo.com/api/v2/emails';
+const MAILEROO_API_KEY = process.env.MAILEROO_API_KEY;
+
+if (!MAILEROO_API_KEY) {
+  console.warn('Warning: MAILEROO_API_KEY not set. Set it in .env before running server.');
+}
+
 /* -------------------- MIDDLEWARE ทั่วไป -------------------- */
 
 // อ่านข้อมูลจาก form (urlencoded) สำหรับฟอร์มส่งเมล
@@ -33,7 +42,7 @@ app.use(express.urlencoded({ extended: true }));
 // ถ้าเผื่อมีการส่ง JSON ในอนาคต
 app.use(express.json());
 
-// เสิร์ฟไฟล์ static ในโฟลเดอร์ public (index.html, upload.html, mail.html)
+// เสิร์ฟไฟล์ static ในโฟลเดอร์ public (index.html, upload.html, mail.html, maileroo.html)
 app.use(express.static(path.join(__dirname, 'public')));
 
 /* -------------------- ROUTE หน้าแรก -------------------- */
@@ -43,10 +52,10 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-/* -------------------- ROUTE อัปโหลดรูป /upload -------------------- */
+/* -------------------- ROUTE อัปโหลดรูป /api/upload -------------------- */
 
-// POST /upload => รับไฟล์จาก client แล้ว forward ให้ pic.in.th
-app.post('/upload', upload.single('file'), async (req, res) => {
+// POST /api/upload => รับไฟล์จาก client แล้ว forward ให้ pic.in.th
+app.post('/api/upload', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'no_file' });
 
@@ -86,13 +95,13 @@ app.post('/upload', upload.single('file'), async (req, res) => {
   }
 });
 
-/* -------------------- ROUTE ส่งเมล /send-mail -------------------- */
+/* -------------------- ROUTE ส่งเมลแบบเก่า (Gmail SMTP) /api/send-mail -------------------- */
 
-// POST /send-mail -> รับข้อมูลจากฟอร์มแล้วส่งเมล
-app.post('/send-mail', async (req, res) => {
+// ตัวนี้ของเก่า ไม่ไปยุ่ง
+app.post('/api/send-mail', async (req, res) => {
   const { to, subject, message } = req.body;
 
-  // สร้าง transporter สำหรับส่งเมล
+  // สร้าง transporter สำหรับส่งเมลด้วย Gmail
   const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
     port: 465,
@@ -104,27 +113,98 @@ app.post('/send-mail', async (req, res) => {
   });
 
   const mailOptions = {
-    from: `"Web Mailer" <${process.env.MAIL_USER}>`,
+    from: `"My-Web" <${process.env.MAIL_USER}>`,
     to,
     subject,
     text: message,
-    // ถ้าอยากส่งเป็น HTML:
     // html: `<p>${message}</p>`
   };
 
   try {
     await transporter.sendMail(mailOptions);
     res.send(`
-      <h2>ส่งเมลสำเร็จ!</h2>
+      <h2>ส่งเมล (Gmail SMTP) สำเร็จ!</h2>
       <p>ส่งไปที่: ${to}</p>
       <a href="/">กลับหน้าหลัก</a>
     `);
   } catch (error) {
     console.error(error);
     res.status(500).send(`
-      <h2>เกิดข้อผิดพลาดในการส่งเมล</h2>
+      <h2>เกิดข้อผิดพลาดในการส่งเมล (Gmail)</h2>
       <pre>${error.message}</pre>
       <a href="/">ลองใหม่ / กลับหน้าหลัก</a>
+    `);
+  }
+});
+
+/* -------------------- ROUTE ส่งเมลแบบใหม่ (Maileroo API) /api/send-mail-maileroo -------------------- */
+
+app.post('/api/send-mail-maileroo', async (req, res) => {
+  const { to, subject, message } = req.body;
+
+  if (!MAILEROO_API_KEY) {
+    return res.status(500).send(`
+      <h2>MAILEROO_API_KEY ไม่ถูกตั้งค่า</h2>
+      <p>กรุณาเช็คไฟล์ .env ให้มีค่า MAILEROO_API_KEY</p>
+      <a href="/">กลับหน้าหลัก</a>
+    `);
+  }
+
+  const fromAddress = process.env.MAIL_FROM_ADDRESS; // เช่น no-reply@059a583b4ef0a6eb.maileroo.org
+  const fromName = process.env.MAIL_FROM_NAME || 'My-Web';
+
+  if (!fromAddress) {
+    return res.status(500).send(`
+      <h2>MAIL_FROM_ADDRESS ไม่ถูกตั้งค่า</h2>
+      <p>กรุณาใส่ MAIL_FROM_ADDRESS ในไฟล์ .env เช่น no-reply@059a583b4ef0a6eb.maileroo.org</p>
+      <a href="/">กลับหน้าหลัก</a>
+    `);
+  }
+
+  const payload = {
+    from: {
+      address: fromAddress,
+      display_name: fromName,
+    },
+    to: [
+      { address: to },
+    ],
+    subject,
+    html: `<p>${(message || '').replace(/\n/g, '<br>')}</p>`,
+    plain: message,
+    tracking: true,
+  };
+
+  try {
+    const response = await axios.post(MAILEROO_API_URL, payload, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${MAILEROO_API_KEY}`,
+      },
+      validateStatus: () => true,
+    });
+
+    if (response.status >= 200 && response.status < 300) {
+      res.send(`
+        <h2>ส่งเมลผ่าน Maileroo สำเร็จ!</h2>
+        <p>ส่งไปที่: ${to}</p>
+        <a href="/">กลับหน้าหลัก</a>
+      `);
+    } else {
+      console.error('Maileroo API error:', response.status, response.data);
+      res.status(response.status).send(`
+        <h2>Maileroo API ตอบกลับด้วย error</h2>
+        <p>Status: ${response.status}</p>
+        <pre>${JSON.stringify(response.data, null, 2)}</pre>
+        <a href="/">กลับหน้าหลัก</a>
+      `);
+    }
+  } catch (error) {
+    console.error('Maileroo API request failed:', error);
+    res.status(500).send(`
+      <h2>เกิดข้อผิดพลาดในการเรียก Maileroo API</h2>
+      <pre>${error.message}</pre>
+      <a href="/">กลับหน้าหลัก</a>
     `);
   }
 });

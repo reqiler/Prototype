@@ -2,7 +2,7 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8" />
-  <title>ระบบส่งเมลด้วย Node.js</title>
+  <title>ส่งเมลผ่าน Maileroo</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     body {
@@ -74,8 +74,8 @@
 <body>
   <div class="container">
     <a href="/index.html" class="back">← กลับหน้าหลัก</a>
-    <h1>ฟอร์มส่งอีเมล</h1>
-    <form method="POST" action="/api/send-mail">
+    <h1>ฟอร์มส่งอีเมล (Maileroo)</h1>
+    <form method="POST" action="/api/send-mail-maileroo">
       <label for="to">อีเมลผู้รับ</label>
       <input type="email" id="to" name="to" placeholder="someone@example.com" required />
 
@@ -85,7 +85,7 @@
       <label for="message">ข้อความ</label>
       <textarea id="message" name="message" placeholder="พิมพ์ข้อความที่ต้องการส่ง" required></textarea>
 
-      <button type="submit">ส่งอีเมล</button>
+      <button type="submit">ส่งอีเมลผ่าน Maileroo</button>
     </form>
   </div>
 </body>
