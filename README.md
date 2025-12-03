@@ -1,5 +1,9 @@
 === Prototype for further development ===
 
+https://pic.in.th/
+https://myaccount.google.com/apppasswords
+https://app.maileroo.com/
+
 .env *
 ```
 PIC_API_KEY=คีย์ของ pic.in.th
