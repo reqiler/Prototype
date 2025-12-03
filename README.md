@@ -1,8 +1,8 @@
 === Prototype for further development ===
 
-https://pic.in.th/
-https://myaccount.google.com/apppasswords
-https://app.maileroo.com/
+- https://pic.in.th/
+- https://myaccount.google.com/apppasswords
+- https://app.maileroo.com/
 
 .env *
 ```
